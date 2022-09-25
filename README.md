@@ -1,2 +1,3 @@
 # golang-solution-problem
-Solutions' set of competitive programing problems. That solutions write in Go
+
+Set of solutions of competitive programing problems. That solutions write in Go
