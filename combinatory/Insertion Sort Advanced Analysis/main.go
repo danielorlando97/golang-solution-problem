@@ -1,93 +1,118 @@
 package main
 
-type Node struct {
-	RightNode *Node
-	LeftNode  *Node
-	value     int32
-	count     int
-}
+import "fmt"
 
-func createNewNode(value int32) *Node {
-	result := Node{
-		RightNode: nil, // less value
-		LeftNode:  nil, // hide value
-		value:     value,
-		count:     0,
+func cmp(a [2]int32, b [2]int32) ([2]int32, [2]int32) {
+	if a[0] < b[0] {
+		return a, b
 	}
 
-	return &result
-}
-
-func (n *Node) CountSteepToEnd() int32 {
-	var leftValue int32 = 0
-	if n.LeftNode == nil {
-		leftValue = n.LeftNode.CountSteepToEnd()
+	if a[0] > b[0] {
+		return b, a
 	}
 
-	return int32(n.count) + leftValue
-}
-
-func (n *Node) AddNewValue(value int32) *Node {
-	switch {
-	case n.value == value:
-		n.count += 1
-
-	case n.value < value && n.LeftNode != nil:
-		n.LeftNode = n.LeftNode.AddNewValue(value)
-
-	case n.value < value && n.LeftNode == nil:
-		n.LeftNode = createNewNode(value)
-
-	case n.value > value && n.RightNode != nil:
-		n.RightNode = n.RightNode.AddNewValue(value)
-
-	case n.value > value && n.RightNode != nil:
-		n.RightNode = createNewNode(value)
+	if a[1] < b[1] {
+		return a, b
 	}
 
-	return n
+	return b, a
 }
 
-func (n *Node) FindInsertionNode(value int32) *Node {
-	switch {
-	case n.value == value:
-		return n.LeftNode
-
-	case n.value < value && n.RightNode == nil:
-		return n
-	case n.value > value:
-		return n.RightNode.FindInsertionNode(value)
-
-	case n.value < value && n.LeftNode.value < value:
-		return n.LeftNode.FindInsertionNode(value)
-
-	default:
-		return n.LeftNode
-
+func binarySort(arr [][2]int32, ch chan [][2]int32) {
+	if len(arr) == 2 {
+		a, b := cmp(arr[0], arr[1])
+		ch <- [][2]int32{a, b}
+		return
 	}
+
+	if len(arr) == 1 {
+		ch <- arr
+		return
+	}
+
+	cha := make(chan [][2]int32)
+	chb := make(chan [][2]int32)
+
+	go binarySort(arr[0:len(arr)/2], cha)
+	go binarySort(arr[len(arr)/2:], chb)
+
+	a := <-cha
+	b := <-chb
+
+	result := make([][2]int32, 0)
+
+	indexA, indexB := 0, 0
+	for indexA < len(a) && indexB < len(b) {
+		_a, _ := cmp(a[indexA], b[indexB])
+
+		if _a == a[indexA] {
+			indexA++
+		} else {
+			indexB++
+		}
+
+		result = append(result, _a)
+	}
+
+	for indexA < len(a) {
+		result = append(result, a[indexA])
+		indexA++
+	}
+
+	for indexB < len(b) {
+		result = append(result, b[indexB])
+		indexB++
+	}
+
+	ch <- result
+	return
+
 }
 
 func insertionSort(arr []int32) int32 {
-	len_arr := len(arr)
-	if len_arr == 0 {
-		return 0
+	arr_map := make([][2]int32, 0)
+
+	for i := 0; i < len(arr); i++ {
+		arr_map = append(arr_map, [2]int32{arr[i], int32(i)})
 	}
 
-	avlTree := createNewNode(arr[0])
+	ch := make(chan [][2]int32)
+	go binarySort(arr_map, ch)
+	arr_map = <-ch
+
 	var result int32 = 0
-	var maxPivot int32 = -1
+	for i := 0; i < len(arr); i++ {
 
-	for i := 1; i < len_arr; i++ {
-		avlTree = avlTree.AddNewValue(arr[i])
+		fmt.Println(arr_map[i][0], arr_map[i][1], i)
+		sum := arr_map[i][1] - int32(i)
 
-		if maxPivot >= arr[i] {
-			maxPivot = arr[i]
-			continue
+		if sum == 0 && i+1 < len(arr) && arr_map[i][1] > arr_map[i+1][1] {
+			sum = 2
 		}
 
-		result += avlTree.FindInsertionNode(arr[i]).CountSteepToEnd()
+		if sum < 0 {
+			sum *= -1
+		}
+
+		result += sum
 	}
 
-	return result
-
+	return result / 2
 }
+
+func main() {
+	var input []int32
+	input = []int32{12, 15, 1, 5, 6, 14, 11}
+
+	fmt.Println(insertionSort(input))
+}
+
+// 0, 	1, 	2,	3,	4, 	5, 	6
+// 12, 15,  1,  5,  6, 14, 11
+// 1,  12, 15,  5,  6, 14, 11 -> 2
+// 1, 	5, 12, 15,  6, 14, 11 -> 2
+// 1, 	5,  6, 12, 15, 14, 11 -> 2
+// 1, 	5,  6, 12, 14, 15, 11 -> 1
+// 1, 	5,  6, 11, 12, 14, 15 -> 3
+
+// 2,	2,	2,	3,	4, 	0	5
